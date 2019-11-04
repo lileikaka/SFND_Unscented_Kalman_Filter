@@ -1,6 +1,6 @@
 #ifndef UKF_H
 #define UKF_H
-
+#include <iostream>
 #include "Eigen/Dense"
 #include "measurement_package.h"
 
@@ -40,7 +40,13 @@ class UKF {
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
-
+  
+  void AugmentedSigmaPoints(Eigen::MatrixXd* Xsig_out,Eigen::VectorXd& x,Eigen::MatrixXd& P);
+  void SigmaPointPrediction(Eigen::MatrixXd* Xsig_out,Eigen::MatrixXd& Xsig_aug,double delta_t);
+  void PredictMeanAndCovariance(Eigen::VectorXd* x_pred,Eigen::MatrixXd* P_pred,Eigen::MatrixXd& Xsig_pred);
+  void PredictRadarMeasurement(Eigen::VectorXd* z_out, Eigen::MatrixXd* z_sig,Eigen::MatrixXd* S_out,Eigen::MatrixXd& Xsig_pred);
+  void UpdateRadarState(Eigen::VectorXd* x_out,Eigen::MatrixXd* P_out,Eigen::MatrixXd& Xsig_pred,
+  Eigen::VectorXd& x,Eigen::MatrixXd& P,Eigen::MatrixXd& Zsig,Eigen::VectorXd& z_pred,Eigen::MatrixXd& S,Eigen::VectorXd& z);
 
   // initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
@@ -95,6 +101,15 @@ class UKF {
 
   // Sigma point spreading parameter
   double lambda_;
+
+  int n_z_;
+  Eigen::VectorXd weights;
+  Eigen::MatrixXd Xsig;
+
+  Eigen::MatrixXd Xsig_pred;
+  Eigen::MatrixXd Zsig;
+  Eigen::VectorXd z_pred;
+  Eigen::MatrixXd S;
 };
 
 #endif  // UKF_H
