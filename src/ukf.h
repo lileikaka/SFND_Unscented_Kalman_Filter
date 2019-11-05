@@ -118,9 +118,7 @@ class UKF {
 
   Eigen::MatrixXd Zsig_l;
   Eigen::VectorXd z_pred_l;
-  Eigen::MatrixXd S_l;
-  bool use_fmod;
-  double angle_norm;
+  Eigen::MatrixXd S_l;  
 };
 
 #endif  // UKF_H
