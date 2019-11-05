@@ -109,7 +109,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
 		if(meas_package.sensor_type_ ==MeasurementPackage::LASER)
 		{
-
+			if(!use_laser_) return;
 			x_ << meas_package.raw_measurements_(0),
 				meas_package.raw_measurements_(1),
 				0,
@@ -125,22 +125,21 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 			//is_initialized_ = true;
 			return;			
 		} 
-		else
+		else if(meas_package.sensor_type_ ==MeasurementPackage::RADAR)
 		{
+			if(!use_radar_) return;
 			double rho = meas_package.raw_measurements_(0);
 			double phi = meas_package.raw_measurements_(1);
 			double rho_ = meas_package.raw_measurements_(2);
 			double x = rho*cos(phi);
-			double y = rho*sin(phi);
-			double vx = rho_*cos(phi);
-			double vy = rho_*sin(phi);
-			double v = sqrt(vx*vx + vy*vy);
+			double y = rho*sin(phi);			
+			
 			//x_(0) = x;
 			//x_(1) = y;
 			//x_(2) = rho_;
-			std::cout << "x = " << x << std::endl << "y = " << y << std::endl;
-			std::cout << "rho_ = " << rho_ << std::endl << "v = " << v << std::endl;
-			std::cout << "phi = " << phi << std::endl << "atan = " << atan2(x_(1),x_(0)) << std::endl;
+			//std::cout << "x = " << x << std::endl << "y = " << y << std::endl;
+			//std::cout << "rho_ = " << rho_ << std::endl;
+			//std::cout << "phi = " << phi << std::endl << "atan = " << atan2(x_(1),x_(0)) << std::endl;
 			if(x_(0) < 0.0)
 			{
 				x_(2) = -rho_;
@@ -160,54 +159,37 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 		}
 
 	}
-
-	/*
-  if(time_us_ != meas_package.timestamp_)
-  {
-	AugmentedSigmaPoints(&Xsig,x_,P_);
-	SigmaPointPrediction(&Xsig_pred,Xsig,meas_package.timestamp_-time_us_);
-	PredictMeanAndCovariance(&x_,&P_,Xsig_pred);	
-	PredictLidarMeasurement(&z_pred_l,&Zsig_l,&S_l,Xsig_pred);
-	time_us_ = meas_package.timestamp_;
-  }
-  */
   
-
   if(meas_package.sensor_type_ ==MeasurementPackage::LASER)
   {
-	/*
-	++cnt_lidar;
-	if(cnt_lidar<3)
-	{
-		double diffx = meas_package.raw_measurements_[0] - x_(0);
-		double diffy = meas_package.raw_measurements_[1] - x_(1);
-		x_ << meas_package.raw_measurements_[0],
-			meas_package.raw_measurements_[1],
-			sqrt(diffx*diffx+diffy*diffy)*(meas_package.timestamp_-time_us_)/1000000,
-			0,
-      		0;
-	}
-	*/
-	///*
-	AugmentedSigmaPoints(&Xsig,x_,P_);
-	SigmaPointPrediction(&Xsig_pred,Xsig,meas_package.timestamp_-time_us_);
-	PredictMeanAndCovariance(&x_,&P_,Xsig_pred);	
+	if(!use_laser_) return;
+	Prediction((meas_package.timestamp_-time_us_)/1000000.0);
+	
+	//AugmentedSigmaPoints(&Xsig,x_,P_);
+	//SigmaPointPrediction(&Xsig_pred,Xsig,(meas_package.timestamp_-time_us_)/1000000.0);
+	//PredictMeanAndCovariance(&x_,&P_,Xsig_pred);	
 	PredictLidarMeasurement(&z_pred_l,&Zsig_l,&S_l,Xsig_pred);
 	time_us_ = meas_package.timestamp_;
     UpdateLidar(meas_package);
-	//*/
+	
   }
-  else
-  {
-	///*
-	AugmentedSigmaPoints(&Xsig,x_,P_);
-	//SigmaPointPrediction(&Xsig_pred,Xsig,meas_package.timestamp_-time_us_);
-	//PredictMeanAndCovariance(&x_,&P_,Xsig_pred);	
-	//PredictRadarMeasurement(&z_pred,&Zsig,&S,Xsig_pred);
-	PredictRadarMeasurement(&z_pred,&Zsig,&S,Xsig);
+  else if(meas_package.sensor_type_ ==MeasurementPackage::RADAR)
+  {	
+	if(!use_radar_) return;
+	if(!use_laser_) 
+	{
+		Prediction((meas_package.timestamp_-time_us_)/1000000.0);
+		PredictRadarMeasurement(&z_pred,&Zsig,&S,Xsig_pred);
+	}
+	else
+	{
+		//fusion lidar and radar
+		AugmentedSigmaPoints(&Xsig,x_,P_);	
+		PredictRadarMeasurement(&z_pred,&Zsig,&S,Xsig);
+	}
 	time_us_ = meas_package.timestamp_;
     UpdateRadar(meas_package);
-	//*/
+	
   }  
   /**
    * TODO: Complete this function! Make sure you switch between lidar and radar
@@ -221,7 +203,9 @@ void UKF::Prediction(double delta_t) {
    * Modify the state vector, x_. Predict sigma points, the state, 
    * and the state covariance matrix.
    */
-
+	AugmentedSigmaPoints(&Xsig,x_,P_);
+	SigmaPointPrediction(&Xsig_pred,Xsig,delta_t);
+	PredictMeanAndCovariance(&x_,&P_,Xsig_pred);
 }
 
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
@@ -277,9 +261,7 @@ void UKF::UpdateLidarState(VectorXd* x_out, MatrixXd* P_out,MatrixXd& Xsig_pred,
 		}
 		
 		weighted_diff_x.col(i) = weights(i)*diff_x.col(i);
-		diff_z.col(i) = Zsig.col(i) - z_pred;
-		//while (diff_z.col(i)(1)> M_PI) diff_z.col(i)(1) -= 2.*M_PI;
-		//while (diff_z.col(i)(1)<-M_PI) diff_z.col(i)(1) += 2.*M_PI;
+		diff_z.col(i) = Zsig.col(i) - z_pred;		
 		
 	}
 	Tc = weighted_diff_x * diff_z.transpose();
@@ -558,7 +540,7 @@ void UKF::SigmaPointPrediction(MatrixXd* Xsig_out,MatrixXd& Xsig_aug,double delt
 	MatrixXd Xsig_pred = MatrixXd(n_x_, 2 * n_aug_ + 1);
 
 	//double delta_t = 0.1; // time diff in sec
-	delta_t = delta_t /1000000;
+	//delta_t = delta_t /1000000;
 	/**
 	* Student part begin
 	*/
