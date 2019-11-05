@@ -23,11 +23,11 @@ UKF::UKF() {
 	// Process noise standard deviation longitudinal acceleration in m/s^2
 	//std_a_ = 0.2;
 	//std_a_ = 2.5;
-	std_a_ = 5.0;
+	std_a_ = 3.0;
 
 	// Process noise standard deviation yaw acceleration in rad/s^2
 	//std_yawdd_ = 0.2;
-	std_yawdd_ = 0.5;
+	std_yawdd_ = 0.1;
 
 	/**
 	 * DO NOT MODIFY measurement noise values below.
@@ -95,6 +95,7 @@ UKF::UKF() {
 		0.000, 0.000, 0.000, 0.000,1.00;
 	is_initialized_=false;
 	use_fmod = true;
+	angle_norm = 2.0*M_PI;
 }
 
 UKF::~UKF() {}
@@ -118,8 +119,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 			P_(0,0) = std_laspx_*std_laspx_;
 			P_(1,1) = std_laspy_*std_laspy_;
 			P_(2,2) = 0.01;
-			P_(3,3) = 0.01;
-			P_(4,4) = 0.01;
+			P_(3,3) = 0.001;
+			P_(4,4) = 0.001;
 			
 			time_us_ = meas_package.timestamp_;
 			//is_initialized_ = true;
@@ -142,11 +143,11 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 			//std::cout << "phi = " << phi << std::endl << "atan = " << atan2(x_(1),x_(0)) << std::endl;
 			if(x_(0) < 0.0)
 			{
-				x_(2) = -rho_;
+				x_(2) = -rho_;				
 			}
 			else
 			{
-				x_(2) = rho_;
+				x_(2) = rho_;				
 			}
 			//x_(2) = v;
 			//x_(3) = phi;
@@ -162,33 +163,33 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   
   if(meas_package.sensor_type_ ==MeasurementPackage::LASER)
   {
-	if(!use_laser_) return;
-	Prediction((meas_package.timestamp_-time_us_)/1000000.0);
-	
-	//AugmentedSigmaPoints(&Xsig,x_,P_);
-	//SigmaPointPrediction(&Xsig_pred,Xsig,(meas_package.timestamp_-time_us_)/1000000.0);
-	//PredictMeanAndCovariance(&x_,&P_,Xsig_pred);	
-	PredictLidarMeasurement(&z_pred_l,&Zsig_l,&S_l,Xsig_pred);
-	time_us_ = meas_package.timestamp_;
-    UpdateLidar(meas_package);
+		if(!use_laser_) return;
+		Prediction((meas_package.timestamp_-time_us_)/1000000.0);
+
+		//AugmentedSigmaPoints(&Xsig,x_,P_);
+		//SigmaPointPrediction(&Xsig_pred,Xsig,(meas_package.timestamp_-time_us_)/1000000.0);
+		//PredictMeanAndCovariance(&x_,&P_,Xsig_pred);	
+		PredictLidarMeasurement(&z_pred_l,&Zsig_l,&S_l,Xsig_pred);
+		time_us_ = meas_package.timestamp_;
+		UpdateLidar(meas_package);
 	
   }
   else if(meas_package.sensor_type_ ==MeasurementPackage::RADAR)
   {	
-	if(!use_radar_) return;
-	if(!use_laser_) 
-	{
-		Prediction((meas_package.timestamp_-time_us_)/1000000.0);
-		PredictRadarMeasurement(&z_pred,&Zsig,&S,Xsig_pred);
-	}
-	else
-	{
-		//fusion lidar and radar
-		AugmentedSigmaPoints(&Xsig,x_,P_);	
-		PredictRadarMeasurement(&z_pred,&Zsig,&S,Xsig);
-	}
-	time_us_ = meas_package.timestamp_;
-    UpdateRadar(meas_package);
+		if(!use_radar_) return;
+		if(!use_laser_) 
+		{
+			Prediction((meas_package.timestamp_-time_us_)/1000000.0);
+			PredictRadarMeasurement(&z_pred,&Zsig,&S,Xsig_pred);
+		}
+		else
+		{			
+			//fusion lidar and radar
+			AugmentedSigmaPoints(&Xsig,x_,P_);	
+			PredictRadarMeasurement(&z_pred,&Zsig,&S,Xsig);
+		}
+		time_us_ = meas_package.timestamp_;
+		UpdateRadar(meas_package);
 	
   }  
   /**
@@ -252,7 +253,7 @@ void UKF::UpdateLidarState(VectorXd* x_out, MatrixXd* P_out,MatrixXd& Xsig_pred,
 		
 		if(use_fmod)
 		{
-			diff_x.col(i)(3) = fmod(diff_x.col(i)(3),2.*M_PI);
+			diff_x.col(i)(3) = fmod(diff_x.col(i)(3),angle_norm);
 		}
 		else
 		{
@@ -279,7 +280,7 @@ void UKF::UpdateLidarState(VectorXd* x_out, MatrixXd* P_out,MatrixXd& Xsig_pred,
 	// print result
 	//std::cout << "Updated state x: " << std::endl << x << std::endl;
 	//std::cout << "Updated state covariance P: " << std::endl << P << std::endl;
-
+	std::cout << "Lidar NIS: " << CalculateNIS(z_pred,z,S) << std::endl;
 	// write result
 	*x_out = x;
 	*P_out = P;
@@ -304,7 +305,7 @@ void UKF::UpdateRadarState(VectorXd* x_out, MatrixXd* P_out,MatrixXd& Xsig_pred,
 		
 		if(use_fmod)
 		{
-			diff_x.col(i)(3) = fmod(diff_x.col(i)(3),2.*M_PI);
+			diff_x.col(i)(3) = fmod(diff_x.col(i)(3),angle_norm);
 		}
 		else
 		{
@@ -317,7 +318,7 @@ void UKF::UpdateRadarState(VectorXd* x_out, MatrixXd* P_out,MatrixXd& Xsig_pred,
 		
 		if(use_fmod)
 		{
-			diff_z.col(i)(1) = fmod(diff_z.col(i)(1),2.*M_PI);
+			diff_z.col(i)(1) = fmod(diff_z.col(i)(1),angle_norm);
 		}
 		else
 		{
@@ -341,7 +342,8 @@ void UKF::UpdateRadarState(VectorXd* x_out, MatrixXd* P_out,MatrixXd& Xsig_pred,
 	// print result
 	//std::cout << "Updated state x: " << std::endl << x << std::endl;
 	//std::cout << "Updated state covariance P: " << std::endl << P << std::endl;
-
+	std::cout << "Radar NIS: " << CalculateNIS(z_pred,z,S) << std::endl;
+	
 	// write result
 	*x_out = x;
 	*P_out = P;
@@ -436,7 +438,7 @@ void UKF::PredictRadarMeasurement(VectorXd* z_out, MatrixXd* z_sig,MatrixXd* S_o
 		
 		if(use_fmod)
 		{
-			z_diff.col(i)(1) = fmod(z_diff.col(i)(1),2.*M_PI);
+			z_diff.col(i)(1) = fmod(z_diff.col(i)(1),angle_norm);
 		}
 		else
 		{
@@ -505,7 +507,7 @@ void UKF::PredictMeanAndCovariance(VectorXd* x_out, MatrixXd* P_out, MatrixXd& X
 		// angle normalization
 		if(use_fmod)
 		{
-			x_diff(3) = fmod(x_diff(3),2.*M_PI);
+			x_diff(3) = fmod(x_diff(3),angle_norm);
 		}
 		else
 		{
@@ -651,4 +653,9 @@ void UKF::AugmentedSigmaPoints(MatrixXd* Xsig_out,VectorXd& x,MatrixXd& P) {
 
 	// write result
 	*Xsig_out = Xsig_aug;
+}
+
+double UKF::CalculateNIS(VectorXd& z_pred,VectorXd& z,MatrixXd& S) {
+	VectorXd diff_z = z - z_pred;
+	return diff_z.transpose() * S.inverse()*diff_z;
 }

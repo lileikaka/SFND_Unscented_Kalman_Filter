@@ -50,7 +50,7 @@ class UKF {
   Eigen::VectorXd& x,Eigen::MatrixXd& P,Eigen::MatrixXd& Zsig,Eigen::VectorXd& z_pred,Eigen::MatrixXd& S,Eigen::VectorXd& z);
   void UpdateLidarState(Eigen::VectorXd* x_out, Eigen::MatrixXd* P_out,Eigen::MatrixXd& Xsig_pred,Eigen::VectorXd& x,
   Eigen::MatrixXd& P,Eigen::MatrixXd& Zsig,Eigen::VectorXd& z_pred,Eigen::MatrixXd& S,Eigen::VectorXd& z);
-
+  double CalculateNIS(Eigen::VectorXd& z_pred,Eigen::VectorXd& z,Eigen::MatrixXd& S);
   // initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -120,6 +120,7 @@ class UKF {
   Eigen::VectorXd z_pred_l;
   Eigen::MatrixXd S_l;
   bool use_fmod;
+  double angle_norm;
 };
 
 #endif  // UKF_H
