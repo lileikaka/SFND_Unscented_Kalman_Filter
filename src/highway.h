@@ -20,9 +20,10 @@ public:
 	// Parameters 
 	// --------------------------------
 	// Set which cars to track with UKF
-	std::vector<bool> trackCars = {true,false,false};
+	//std::vector<bool> trackCars = {false,true,false};
+	std::vector<bool> trackCars = {true,true,true};
 	// Visualize sensor measurements
-	bool visualize_lidar = false;
+	bool visualize_lidar = true;
 	bool visualize_radar = true;
 	bool visualize_pcd = false;
 	// Predict path in the future using UKF
@@ -143,8 +144,8 @@ public:
     			double v2 = sin(yaw)*v;
 				estimate << traffic[i].ukf.x_[0], traffic[i].ukf.x_[1], v1, v2;
 				tools.estimations.push_back(estimate);
-				std::cout << "debug - gt px :" << traffic[i].position.x << ",gt py :" << traffic[i].position.y<< std::endl;
-				std::cout << "debug - es px :" << traffic[i].ukf.x_[0] << ",es py :" << traffic[i].ukf.x_[1]<< std::endl;
+				std::cout << "debug - gt px :" << traffic[i].position.x << ",gt py :" << traffic[i].position.y<< ",gt v :" << traffic[i].velocity << std::endl;
+				std::cout << "debug - es px :" << traffic[i].ukf.x_[0] << ",es py :" << traffic[i].ukf.x_[1]<< ",es v :" << traffic[i].ukf.x_[2] << std::endl;
 	
 			}
 		}

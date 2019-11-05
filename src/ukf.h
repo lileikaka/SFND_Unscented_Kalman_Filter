@@ -45,8 +45,11 @@ class UKF {
   void SigmaPointPrediction(Eigen::MatrixXd* Xsig_out,Eigen::MatrixXd& Xsig_aug,double delta_t);
   void PredictMeanAndCovariance(Eigen::VectorXd* x_pred,Eigen::MatrixXd* P_pred,Eigen::MatrixXd& Xsig_pred);
   void PredictRadarMeasurement(Eigen::VectorXd* z_out, Eigen::MatrixXd* z_sig,Eigen::MatrixXd* S_out,Eigen::MatrixXd& Xsig_pred);
+  void PredictLidarMeasurement(Eigen::VectorXd* z_out, Eigen::MatrixXd* z_sig,Eigen::MatrixXd* S_out,Eigen::MatrixXd& Xsig_pred);
   void UpdateRadarState(Eigen::VectorXd* x_out,Eigen::MatrixXd* P_out,Eigen::MatrixXd& Xsig_pred,
   Eigen::VectorXd& x,Eigen::MatrixXd& P,Eigen::MatrixXd& Zsig,Eigen::VectorXd& z_pred,Eigen::MatrixXd& S,Eigen::VectorXd& z);
+  void UpdateLidarState(Eigen::VectorXd* x_out, Eigen::MatrixXd* P_out,Eigen::MatrixXd& Xsig_pred,Eigen::VectorXd& x,
+  Eigen::MatrixXd& P,Eigen::MatrixXd& Zsig,Eigen::VectorXd& z_pred,Eigen::MatrixXd& S,Eigen::VectorXd& z);
 
   // initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
@@ -103,13 +106,20 @@ class UKF {
   double lambda_;
 
   int n_z_;
+  int n_z_l;
   Eigen::VectorXd weights;
   Eigen::MatrixXd Xsig;
 
   Eigen::MatrixXd Xsig_pred;
+
   Eigen::MatrixXd Zsig;
   Eigen::VectorXd z_pred;
   Eigen::MatrixXd S;
+
+  Eigen::MatrixXd Zsig_l;
+  Eigen::VectorXd z_pred_l;
+  Eigen::MatrixXd S_l;
+  bool use_fmod;
 };
 
 #endif  // UKF_H
